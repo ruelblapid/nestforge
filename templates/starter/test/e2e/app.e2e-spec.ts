@@ -11,6 +11,7 @@ vi.hoisted(() => {
 	process.env.DATABASE_URL ??= 'postgresql://nestjs_user:nestjs_password@localhost:5432/nestjs_postgres';
 	process.env.JWT_SECRET = 'a'.repeat(32);
 	process.env.JWT_REFRESH_SECRET = 'b'.repeat(32);
+	process.env.METRICS_TOKEN = 'metrics-token-1234';
 });
 
 import { AppModule } from '../../src/app.module';
@@ -49,7 +50,12 @@ beforeAll(async () => {
 		})
 		.compile();
 	app = moduleRef.createNestApplication();
-	app.setGlobalPrefix('api', { exclude: [{ path: 'health', method: RequestMethod.GET }] });
+	app.setGlobalPrefix('api', {
+		exclude: [
+			{ path: 'health', method: RequestMethod.GET },
+			{ path: 'metrics', method: RequestMethod.GET },
+		],
+	});
 	app.useLogger(false);
 	await app.init();
 	db = app.get(DataSource);
@@ -68,6 +74,27 @@ describe('health', () => {
 		const res = await http().get('/health');
 		expect(res.status).toBe(200);
 		expect(res.body.status).toBe('ok');
+	});
+});
+
+describe('metrics', () => {
+	it('requires the bearer token', async () => {
+		expect((await http().get('/metrics')).status).toBe(401);
+		expect((await http().get('/metrics').set(bearer('wrong'))).status).toBe(401);
+	});
+
+	it('exposes request durations labelled by route pattern, not raw URL', async () => {
+		await http().get('/api/profiles/me'); // 401, still observed
+		await http().get('/api/does-not-exist/12345');
+
+		const res = await http().get('/metrics').set(bearer('metrics-token-1234'));
+		expect(res.status).toBe(200);
+		expect(res.headers['content-type']).toContain('text/plain');
+		expect(res.text).toContain('process_cpu_user_seconds_total');
+		expect(res.text).toMatch(/http_request_duration_seconds_count\{method="GET",route="\/api\/profiles\/me",status_code="401"\} 1/);
+		expect(res.text).toContain('route="unmatched"');
+		expect(res.text).not.toContain('12345');
+		expect(res.text).not.toContain('route="/metrics"');
 	});
 });
 

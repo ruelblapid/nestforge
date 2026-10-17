@@ -7,7 +7,12 @@ import { env } from './config/env';
 
 async function bootstrap() {
 	const app = await NestFactory.create(AppModule);
-	app.setGlobalPrefix('api', { exclude: [{ path: 'health', method: RequestMethod.GET }] });
+	app.setGlobalPrefix('api', {
+		exclude: [
+			{ path: 'health', method: RequestMethod.GET },
+			{ path: 'metrics', method: RequestMethod.GET },
+		],
+	});
 	if (env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production') setupSwagger(app);
 	app.enableShutdownHooks();
 	await app.listen(env.PORT);

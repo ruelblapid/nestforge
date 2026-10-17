@@ -12,6 +12,8 @@ const schema = z.object({
 	// Comma-separated OAuth client IDs accepted as the token audience. Empty = provider disabled.
 	GOOGLE_CLIENT_IDS: z.string().default(''),
 	APPLE_CLIENT_IDS: z.string().default(''),
+	// If set, GET /metrics requires `Authorization: Bearer <token>`. Empty = open (restrict it at the network level).
+	METRICS_TOKEN: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(16).optional()),
 	// TLS to Postgres. Defaults to on in production, off elsewhere.
 	DATABASE_SSL: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()).transform((v) => (v === undefined ? undefined : v === 'true')),
 	// Serve Swagger UI at /docs. Defaults to on outside production.

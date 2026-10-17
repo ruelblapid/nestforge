@@ -7,6 +7,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ApiExceptionFilter, EitherInterceptor } from 'nestforge';
 import { AuthController } from './api/controllers/auth.controller';
 import { HealthController } from './api/controllers/health.controller';
+import { MetricsController } from './api/controllers/metrics.controller';
 import { ProfileController } from './api/controllers/profile.controller';
 import { RequestContextMiddleware } from './api/middleware/request-context.middleware';
 import { JwtAuthGuard, JwtStrategy, RolesGuard } from './api/security/security';
@@ -15,6 +16,7 @@ import { IDENTITY_VERIFIER } from './application/identity-verifier';
 import { env } from './config/env';
 import { ProfileService } from './application/profile.service';
 import { DatabaseModule } from './infrastructure/database.module';
+import { MetricsService } from './infrastructure/metrics/metrics.service';
 import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-identity-verifier';
 
 @Module({
@@ -25,10 +27,11 @@ import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-iden
 		TerminusModule,
 		DatabaseModule,
 	],
-	controllers: [AuthController, ProfileController, HealthController],
+	controllers: [AuthController, ProfileController, HealthController, MetricsController],
 	providers: [
 		AuthService,
 		ProfileService,
+		MetricsService,
 		JwtStrategy,
 		{
 			provide: IDENTITY_VERIFIER,
@@ -48,7 +51,13 @@ import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-iden
 })
 export class AppModule implements NestModule {
 	configure(consumer: MiddlewareConsumer) {
-		// Health probes are frequent and uninteresting; keep them out of the request log.
-		consumer.apply(RequestContextMiddleware).exclude({ path: 'health', method: RequestMethod.GET }).forRoutes('*');
+		// Probes and scrapes are frequent and uninteresting; keep them out of the request log and metrics.
+		consumer
+			.apply(RequestContextMiddleware)
+			.exclude(
+				{ path: 'health', method: RequestMethod.GET },
+				{ path: 'metrics', method: RequestMethod.GET },
+			)
+			.forRoutes('*');
 	}
 }

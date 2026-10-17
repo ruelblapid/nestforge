@@ -34,6 +34,17 @@ pnpm start:dev                         # applies pending migrations outside prod
 
 Swagger UI is served at `/docs` (JSON at `/docs-json`) and lists every route; request body schemas are generated from the same Zod schemas that validate them. It is on outside production and off in production unless `SWAGGER_ENABLED=true`. Use **Authorize** with an access token from `/api/auth/login`.
 
+## Metrics (Prometheus)
+
+`GET /metrics` serves Prometheus text format: default Node/process metrics plus `http_request_duration_seconds{method,route,status_code}`. `route` is the matched pattern (e.g. `/api/profiles/me`), and anything unmatched is `unmatched`, so label cardinality stays bounded. `/health` and `/metrics` are not recorded. Set `METRICS_TOKEN` (16+ chars) to require `Authorization: Bearer <token>`; with it empty the endpoint is open, so restrict it at the network level.
+
+```yaml
+scrape_configs:
+  - job_name: nestforge-starter
+    authorization: { credentials: <METRICS_TOKEN> }
+    static_configs: [{ targets: ['localhost:4000'] }]
+```
+
 ## Docker
 
 The image is built from the repository root because the starter depends on the workspace package:
@@ -71,4 +82,4 @@ pnpm migration:revert
 
 ## Not done yet
 
-Google/Apple authorization-code (PKCE) and web redirect flows, Prometheus metrics.
+Google/Apple authorization-code (PKCE) and web redirect flows.
