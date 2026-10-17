@@ -69,4 +69,4 @@ export * as Roles from './Domains/Roles';
 export * as Permissions from './Domains/Permissions';
 
 // NestJS integration
-export * from './nest';
+export * from './Nest';
