@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+/** Env vars arrive as empty strings when left blank in .env; treat those as unset. */
+const optional = <T extends z.ZodType>(type: T) => z.preprocess((v) => (v === '' ? undefined : v), type.optional());
+
 const schema = z.object({
 	NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 	PORT: z.coerce.number().default(4000),
@@ -12,6 +15,16 @@ const schema = z.object({
 	// Comma-separated OAuth client IDs accepted as the token audience. Empty = provider disabled.
 	GOOGLE_CLIENT_IDS: z.string().default(''),
 	APPLE_CLIENT_IDS: z.string().default(''),
+	// --- OAuth authorization-code flows (the first ID in *_CLIENT_IDS is the web client used for redirects) ---
+	GOOGLE_CLIENT_SECRET: optional(z.string().min(1)),
+	APPLE_TEAM_ID: optional(z.string().min(1)),
+	APPLE_KEY_ID: optional(z.string().min(1)),
+	/** The Sign in with Apple .p8 key (PEM). A literal backslash-n is accepted for single-line env files. */
+	APPLE_PRIVATE_KEY: optional(z.string().min(1)).transform((v) => v?.replace(/\\n/g, '\n')),
+	/** Public base URL of this API, used to build the provider redirect URIs (no trailing slash needed). */
+	OAUTH_PUBLIC_URL: optional(z.url()),
+	/** Where the browser is sent after the redirect flow, with `?code=<one-time code>` or `?error=<reason>`. */
+	WEB_LOGIN_REDIRECT_URL: optional(z.url()),
 	// If set, GET /metrics requires `Authorization: Bearer <token>`. Empty = open (restrict it at the network level).
 	METRICS_TOKEN: z.preprocess((v) => (v === '' ? undefined : v), z.string().min(16).optional()),
 	// TLS to Postgres. Defaults to on in production, off elsewhere.

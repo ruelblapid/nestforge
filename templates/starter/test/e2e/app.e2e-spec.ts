@@ -62,7 +62,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-	await db.query('TRUNCATE TABLE profiles, auths CASCADE');
+	await db.query('TRUNCATE TABLE login_codes, profiles, auths CASCADE');
 });
 
 afterAll(async () => {

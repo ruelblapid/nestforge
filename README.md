@@ -28,7 +28,28 @@ pnpm start:dev                         # applies pending migrations outside prod
 
 ## Social sign-in
 
-`POST /api/auth/google` and `POST /api/auth/apple` take `{ idToken, nonce? }` (Apple also `firstName?`, `lastName?`). Set `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` (comma-separated audiences); an empty value disables that provider. Tokens are verified against the provider's JWKS with `jose`. An existing account is linked by email only when the provider reports the email as verified.
+Three ways in, all ending in the same access/refresh token pair. Every provider token is verified against the provider's JWKS with `jose` (signature, issuer, audience, nonce). An existing account is linked by email only when the provider reports the email as verified.
+
+`GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` (comma-separated) are the accepted audiences; an empty value disables that provider. **The first ID is the "web" client** used by the redirect flow.
+
+| Flow | Use it when | Endpoints |
+| --- | --- | --- |
+| ID token | The client already has an ID token (Google/Apple native SDKs) | `POST /api/auth/google`, `POST /api/auth/apple` with `{ idToken, nonce? }` (Apple also `firstName?`, `lastName?`) |
+| Client-side code exchange (PKCE) | Mobile / SPA runs the authorization-code flow itself | `POST /api/auth/{google,apple}/code` with `{ code, codeVerifier?, redirectUri?, clientId?, nonce?, firstName?, lastName? }` |
+| Browser redirect | A web app wants the API to run the whole flow | `GET /api/auth/{google,apple}/start`, then the web app calls `POST /api/auth/exchange` with `{ code }` |
+
+**Client-side exchange.** The API swaps the code for an ID token at the provider and signs the user in. `clientId` must be one of the configured IDs (default: the web client); the web client's secret is only ever sent for the web client. For Google, send the PKCE `codeVerifier`; Apple's token endpoint has no PKCE.
+
+**Browser redirect.** `start` redirects to the provider and sets a signed, HTTP-only `oauth_state` cookie holding the state, nonce and PKCE verifier. The provider returns to `/api/auth/<provider>/callback` (Google by GET, Apple by `form_post`), the API checks cookie and state, exchanges the code, signs the user in, and redirects the browser to `WEB_LOGIN_REDIRECT_URL` with `?code=<one-time code>` or `?error=<reason>`. The web app then trades the code at `POST /api/auth/exchange`. Tokens never appear in a URL; the code lives 60 seconds, works once, and is stored only as a hash. Errors: `invalid_state`, `access_denied`, `exchange_failed`, `email_conflict`, `sign_in_failed`.
+
+Setup for the redirect flow:
+
+- `OAUTH_PUBLIC_URL`: public base URL of this API. Register `<OAUTH_PUBLIC_URL>/api/auth/google/callback` and `<OAUTH_PUBLIC_URL>/api/auth/apple/callback` as redirect URIs with the providers. Apple requires HTTPS (and a verified domain).
+- `WEB_LOGIN_REDIRECT_URL`: your frontend page that reads `code` / `error`. It is fixed in config, never taken from the request, so it cannot be used as an open redirect.
+- Google: `GOOGLE_CLIENT_SECRET` for the web client.
+- Apple: the web client ID is your **Services ID**; also set `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` (the `.p8` contents; a literal `\n` between lines is accepted). The API signs Apple's short-lived client-secret JWT itself.
+
+The redirect routes answer 400 until all of the above are set for that provider; the other two flows only need the client IDs.
 
 ## API docs (Swagger)
 
@@ -82,4 +103,4 @@ pnpm migration:revert
 
 ## Not done yet
 
-Google/Apple authorization-code (PKCE) and web redirect flows.
+Nothing planned. Candidates: account unlinking, an admin-creation endpoint, per-user session listing/revocation.

@@ -8,15 +8,20 @@ import { ApiExceptionFilter, EitherInterceptor } from 'nestforge';
 import { AuthController } from './api/controllers/auth.controller';
 import { HealthController } from './api/controllers/health.controller';
 import { MetricsController } from './api/controllers/metrics.controller';
+import { OAuthController } from './api/controllers/oauth.controller';
 import { ProfileController } from './api/controllers/profile.controller';
 import { RequestContextMiddleware } from './api/middleware/request-context.middleware';
 import { JwtAuthGuard, JwtStrategy, RolesGuard } from './api/security/security';
 import { AuthService } from './application/auth.service';
 import { IDENTITY_VERIFIER } from './application/identity-verifier';
 import { env } from './config/env';
+import { OAUTH_CLIENTS } from './application/oauth-client';
+import { OAuthService } from './application/oauth.service';
 import { ProfileService } from './application/profile.service';
 import { DatabaseModule } from './infrastructure/database.module';
 import { MetricsService } from './infrastructure/metrics/metrics.service';
+import { AppleOAuthClient } from './infrastructure/oauth/apple-oauth-client';
+import { GoogleOAuthClient } from './infrastructure/oauth/google-oauth-client';
 import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-identity-verifier';
 
 @Module({
@@ -27,9 +32,10 @@ import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-iden
 		TerminusModule,
 		DatabaseModule,
 	],
-	controllers: [AuthController, ProfileController, HealthController, MetricsController],
+	controllers: [AuthController, OAuthController, ProfileController, HealthController, MetricsController],
 	providers: [
 		AuthService,
+		OAuthService,
 		ProfileService,
 		MetricsService,
 		JwtStrategy,
@@ -40,6 +46,21 @@ import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-iden
 					googleAudiences: parseClientIds(env.GOOGLE_CLIENT_IDS),
 					appleAudiences: parseClientIds(env.APPLE_CLIENT_IDS),
 				}),
+		},
+		{
+			provide: OAUTH_CLIENTS,
+			useFactory: () => ({
+				google: new GoogleOAuthClient({
+					clientIds: parseClientIds(env.GOOGLE_CLIENT_IDS),
+					clientSecret: env.GOOGLE_CLIENT_SECRET,
+				}),
+				apple: new AppleOAuthClient({
+					clientIds: parseClientIds(env.APPLE_CLIENT_IDS),
+					teamId: env.APPLE_TEAM_ID,
+					keyId: env.APPLE_KEY_ID,
+					privateKey: env.APPLE_PRIVATE_KEY,
+				}),
+			}),
 		},
 		{ provide: APP_FILTER, useClass: ApiExceptionFilter },
 		{ provide: APP_INTERCEPTOR, useClass: EitherInterceptor },

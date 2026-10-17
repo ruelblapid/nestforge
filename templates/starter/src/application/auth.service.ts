@@ -158,6 +158,16 @@ export class AuthService {
 		return ok(tokens);
 	}
 
+	/** Starts a fresh session for an already-authenticated user (e.g. after redeeming a login code). */
+	async startSession(userId: string): Promise<Result<AuthTokens>> {
+		const user = await this.users.findById(userId);
+		if (!user) return fail(unauthorizedError());
+		const tokens = await this.issueTokens(user);
+		user.recordLogin(hashToken(tokens.refreshToken));
+		await this.users.save(user);
+		return ok(tokens);
+	}
+
 	async logout(userId: string): Promise<Result<null>> {
 		const user = await this.users.findById(userId);
 		if (user) {
