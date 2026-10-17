@@ -1,10 +1,14 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FilterValueType, IParameters, Operator, Params, QuerySchema, ZodValidationPipe } from 'nestforge';
 import { ProfileService } from '../../application/profile.service';
 import { Role } from '../../domain/role';
 import { UpdateProfileBody, updateProfileSchema } from '../schemas/auth.schemas';
 import { AuthenticatedUser, CurrentUser, Roles } from '../security/security';
+import { bodySchema } from '../swagger';
 
+@ApiTags('profiles')
+@ApiBearerAuth()
 @Controller('profiles')
 export class ProfileController {
 	constructor(private readonly profiles: ProfileService) {}
@@ -14,6 +18,7 @@ export class ProfileController {
 		return this.profiles.getMine(user.id);
 	}
 
+	@ApiBody({ schema: bodySchema(updateProfileSchema) })
 	@Patch('me')
 	updateMine(
 		@CurrentUser() user: AuthenticatedUser,
@@ -35,6 +40,10 @@ export class ProfileController {
 		},
 		sort: ['name', 'lastname', 'age', 'createdAt'],
 		pagination: true,
+	})
+	@ApiOperation({
+		summary: 'List profiles (admin)',
+		description: 'Query: filter[name|lastname][equals|contains], filter[age][equals|gt|gte|lt|lte], filter[createdAt][gte|lte], sort (prefix - for descending; name, lastname, age, createdAt), page[number], page[size].',
 	})
 	@Roles(Role.ADMIN)
 	@Get()

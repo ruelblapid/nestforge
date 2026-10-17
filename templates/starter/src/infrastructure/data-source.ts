@@ -13,6 +13,6 @@ export const dataSource = new DataSource({
 	entities: [AuthEntity, ProfileEntity],
 	migrations: [__dirname + '/migrations/*.{ts,js}'],
 	logging: env.NODE_ENV === 'development',
-	ssl: isProd ? { rejectUnauthorized: false } : false,
+	ssl: (env.DATABASE_SSL ?? isProd) ? { rejectUnauthorized: false } : false,
 });
 

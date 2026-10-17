@@ -12,6 +12,10 @@ const schema = z.object({
 	// Comma-separated OAuth client IDs accepted as the token audience. Empty = provider disabled.
 	GOOGLE_CLIENT_IDS: z.string().default(''),
 	APPLE_CLIENT_IDS: z.string().default(''),
+	// TLS to Postgres. Defaults to on in production, off elsewhere.
+	DATABASE_SSL: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()).transform((v) => (v === undefined ? undefined : v === 'true')),
+	// Serve Swagger UI at /docs. Defaults to on outside production.
+	SWAGGER_ENABLED: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['true', 'false']).optional()).transform((v) => (v === undefined ? undefined : v === 'true')),
 });
 
 export type Env = z.infer<typeof schema>;

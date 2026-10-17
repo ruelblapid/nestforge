@@ -30,6 +30,27 @@ pnpm start:dev                         # applies pending migrations outside prod
 
 `POST /api/auth/google` and `POST /api/auth/apple` take `{ idToken, nonce? }` (Apple also `firstName?`, `lastName?`). Set `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` (comma-separated audiences); an empty value disables that provider. Tokens are verified against the provider's JWKS with `jose`. An existing account is linked by email only when the provider reports the email as verified.
 
+## API docs (Swagger)
+
+Swagger UI is served at `/docs` (JSON at `/docs-json`) and lists every route; request body schemas are generated from the same Zod schemas that validate them. It is on outside production and off in production unless `SWAGGER_ENABLED=true`. Use **Authorize** with an access token from `/api/auth/login`.
+
+## Docker
+
+The image is built from the repository root because the starter depends on the workspace package:
+
+```sh
+docker build -f templates/starter/Dockerfile -t nestforge-starter .
+```
+
+To try the image against the compose database (applies migrations first, then starts the API on :4000):
+
+```sh
+cd templates/starter
+JWT_SECRET=<32+ chars> JWT_REFRESH_SECRET=<32+ chars> docker compose --profile app up --build
+```
+
+In production the container does not migrate on start. Run the same image once per deploy with the command used by the compose `migrate` service (`node node_modules/typeorm/cli.js migration:run -d dist/infrastructure/data-source.js`) before rolling out the API. `DATABASE_SSL` controls TLS to Postgres (default: on in production).
+
 ## Request id and logging
 
 Every request gets an `X-Request-Id` (a safe incoming value is kept, otherwise a UUID is generated) and one log line on completion: method, path (no query string), status, duration, id and user id. `/health` is not logged.
@@ -50,4 +71,4 @@ pnpm migration:revert
 
 ## Not done yet
 
-Google/Apple authorization-code (PKCE) and web redirect flows, Prometheus metrics, Swagger, app Dockerfile.
+Google/Apple authorization-code (PKCE) and web redirect flows, Prometheus metrics.

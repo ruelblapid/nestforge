@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { ZodValidationPipe } from 'nestforge';
 import { AuthService } from '../../application/auth.service';
@@ -17,14 +18,17 @@ import {
 	registerSchema,
 } from '../schemas/auth.schemas';
 import { AuthenticatedUser, CurrentUser, Public } from '../security/security';
+import { bodySchema } from '../swagger';
 
 // Controllers return `Either`; the global EitherInterceptor unwraps Right / throws Left.
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
 	constructor(private readonly auth: AuthService) {}
 
 	@Public()
 	@Throttle({ default: { limit: 5, ttl: 60_000 } })
+	@ApiBody({ schema: bodySchema(registerSchema) })
 	@Post('register')
 	register(@Body(new ZodValidationPipe(registerSchema)) body: RegisterBody) {
 		return this.auth.register(body);
@@ -33,6 +37,7 @@ export class AuthController {
 	@Public()
 	@Throttle({ default: { limit: 10, ttl: 60_000 } })
 	@HttpCode(200)
+	@ApiBody({ schema: bodySchema(loginSchema) })
 	@Post('login')
 	login(@Body(new ZodValidationPipe(loginSchema)) body: LoginBody) {
 		return this.auth.login(body.email, body.password);
@@ -41,6 +46,7 @@ export class AuthController {
 	@Public()
 	@Throttle({ default: { limit: 10, ttl: 60_000 } })
 	@HttpCode(200)
+	@ApiBody({ schema: bodySchema(googleSignInSchema) })
 	@Post('google')
 	google(@Body(new ZodValidationPipe(googleSignInSchema)) body: GoogleSignInBody) {
 		return this.auth.signInWithProvider('google', body.idToken, { nonce: body.nonce });
@@ -49,6 +55,7 @@ export class AuthController {
 	@Public()
 	@Throttle({ default: { limit: 10, ttl: 60_000 } })
 	@HttpCode(200)
+	@ApiBody({ schema: bodySchema(appleSignInSchema) })
 	@Post('apple')
 	apple(@Body(new ZodValidationPipe(appleSignInSchema)) body: AppleSignInBody) {
 		return this.auth.signInWithProvider('apple', body.idToken, {
@@ -60,18 +67,22 @@ export class AuthController {
 
 	@Public()
 	@HttpCode(200)
+	@ApiBody({ schema: bodySchema(refreshSchema) })
 	@Post('refresh')
 	refresh(@Body(new ZodValidationPipe(refreshSchema)) body: RefreshBody) {
 		return this.auth.refresh(body.refreshToken);
 	}
 
+	@ApiBearerAuth()
 	@HttpCode(204)
 	@Post('logout')
 	logout(@CurrentUser() user: AuthenticatedUser) {
 		return this.auth.logout(user.id);
 	}
 
+	@ApiBearerAuth()
 	@HttpCode(204)
+	@ApiBody({ schema: bodySchema(changePasswordSchema) })
 	@Post('change-password')
 	changePassword(
 		@CurrentUser() user: AuthenticatedUser,
