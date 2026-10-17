@@ -1,0 +1,7 @@
+packages:
+  - "packages/*"
+  - "templates/*"
+allowBuilds:
+  esbuild: true
+  bcrypt: true
+  "@swc/core": true
