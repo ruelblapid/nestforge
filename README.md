@@ -12,7 +12,8 @@ pnpm install
 pnpm --filter nestforge build          # the starter consumes the built package
 cd templates/starter
 cp .env.example .env                   # then edit secrets / DATABASE_URL
-pnpm start:dev
+docker compose up -d --wait            # local Postgres matching .env.example
+pnpm start:dev                         # applies pending migrations outside production
 ```
 
 `pnpm test` and `pnpm typecheck` at the root run both projects.
@@ -29,10 +30,20 @@ pnpm start:dev
 
 `POST /api/auth/google` and `POST /api/auth/apple` take `{ idToken, nonce? }` (Apple also `firstName?`, `lastName?`). Set `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` (comma-separated audiences); an empty value disables that provider. Tokens are verified against the provider's JWKS with `jose`. An existing account is linked by email only when the provider reports the email as verified.
 
+## Migrations
+
+Schema changes go through TypeORM migrations in `src/infrastructure/migrations` (`synchronize` is off). Outside production they run on app start; in production run them explicitly.
+
+```sh
+pnpm migration:generate src/infrastructure/migrations/AddSomething   # diff entities vs. DB
+pnpm migration:run
+pnpm migration:revert
+```
+
 ## Query endpoints
 
 `@QuerySchema({...})` on a handler plus `@Params()` on its parameter validates `filter[...]`, `sort`, `page[...]` and returns a 400 listing every violation. See `ProfileController.list`.
 
 ## Not done yet
 
-Google/Apple authorization-code (PKCE) and web redirect flows, Prometheus metrics, request logging/request-id, Swagger, migrations, Dockerfile/compose.
+Google/Apple authorization-code (PKCE) and web redirect flows, Prometheus metrics, request logging/request-id, Swagger, app Dockerfile.

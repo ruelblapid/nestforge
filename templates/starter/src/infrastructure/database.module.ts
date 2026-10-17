@@ -5,6 +5,7 @@ import { env } from '../config/env';
 import { AUTH_REPOSITORY, PROFILE_REPOSITORY, UNIT_OF_WORK } from '../domain/repositories';
 import { AuthEntity } from './entities/auth.entity';
 import { ProfileEntity } from './entities/profile.entity';
+import { dataSource } from './data-source';
 import { AuthRepository } from './repositories/auth.repository';
 import { ProfileRepository } from './repositories/profile.repository';
 import { TypeOrmUnitOfWork } from './unit-of-work';
@@ -14,13 +15,10 @@ const isProd = env.NODE_ENV === 'production';
 @Module({
 	imports: [
 		TypeOrmModule.forRoot({
-			type: 'postgres',
-			url: env.DATABASE_URL,
-			entities: [AuthEntity, ProfileEntity],
-			// TODO: replace with migrations before production.
-			synchronize: !isProd,
-			logging: env.NODE_ENV === 'development',
-			ssl: isProd ? { rejectUnauthorized: false } : false,
+			...dataSource.options,
+			// Schema changes go through migrations; auto-apply only outside production.
+			synchronize: false,
+			migrationsRun: !isProd,
 		}),
 		TypeOrmModule.forFeature([AuthEntity, ProfileEntity]),
 	],
