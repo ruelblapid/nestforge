@@ -16,7 +16,14 @@ import { QueryValidationException, validateQuery } from '../Query/Validator';
 @Injectable()
 export class QueryParametersPipe implements PipeTransform<Record<string, any>, IParameters> {
 	transform(value: Record<string, any>): IParameters {
-		return new QueryParameters().parse(QueryParser.parse(value ?? {}));
+		try {
+			return new QueryParameters().parse(QueryParser.parse(value ?? {}));
+		} catch (e) {
+			if (e instanceof QueryValidationException) {
+				throw new BadRequestException({ message: e.message, errors: e.details });
+			}
+			throw e;
+		}
 	}
 }
 
@@ -28,8 +35,9 @@ export class QueryParametersPipe implements PipeTransform<Record<string, any>, I
  */
 export const Params = createParamDecorator((_data: unknown, ctx: ExecutionContext): IParameters => {
 	const req = ctx.switchToHttp().getRequest();
-	const map = QueryParser.parse(req.query ?? {});
+	let map;
 	try {
+		map = QueryParser.parse(req.query ?? {});
 		validateQuery(ctx.getClass(), ctx.getHandler().name, map);
 	} catch (e) {
 		if (e instanceof QueryValidationException) {

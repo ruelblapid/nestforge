@@ -1,6 +1,6 @@
 {
 	"name": "nestforge",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Reusable Either / value-object / query-filter core for NestJS apps. ORM-agnostic, Zod-based.",
 	"license": "UNLICENSED",
 	"main": "./dist/index.js",
@@ -16,6 +16,7 @@
 	"files": ["dist"],
 	"scripts": {
 		"build": "tsup",
+		"prepare": "tsup",
 		"dev": "tsup --watch",
 		"test": "vitest run",
 		"typecheck": "tsc --noEmit"

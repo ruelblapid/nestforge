@@ -44,6 +44,18 @@ export interface BadRequestError {
 	code?: number;
 }
 
+/**
+ * A business-rule failure with a stable machine-readable code. `code` is the HTTP status, `errorCode`
+ * is what clients branch on, `details` is merged into the response by filters that choose to.
+ */
+export interface CodedError {
+	kind: 'CodedError';
+	message: string;
+	code: number;
+	errorCode: string;
+	details?: Record<string, unknown>;
+}
+
 export interface ErrorData {
 	message: string;
 	source: string;
@@ -73,4 +85,5 @@ export type DataError =
 	| ErrorFold
 	| IUseCaseError
 	| QueryError
-	| ValidationError;
+	| ValidationError
+	| CodedError;

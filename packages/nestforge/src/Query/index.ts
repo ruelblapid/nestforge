@@ -12,6 +12,7 @@ import { FilterField } from './Parameters/FilterField';
 import { Operator, FilterOperator } from './Parameters/FilterOperator';
 import FilterParameters from './Parameters/FilterParameters';
 import { FilterValue } from './Parameters/FilterValue';
+import { QueryValidationException } from './Validator/QueryValidator';
 import Parameters from './Parameters/index';
 import PagingParameter from './Parameters/PagingParameter';
 import RouteParameter from './Parameters/RouteParameter';
@@ -27,14 +28,18 @@ import { FieldSet } from './Parameters/FieldSet';
 // operator config (Shared/Query/Validator/Types.ts) is written in terms of
 // the named form.
 const OPERATOR_MAP: Record<string, Operator> = {
-	contains: Operator.NAMED_CONTAINS,
+	eq: Operator.NAMED_EQ,
 	equals: Operator.EQUAL,
 	not_eq: Operator.NAMED_NOT_EQ,
+	contains: Operator.NAMED_CONTAINS,
+	not_contains: Operator.NAMED_NOT_CONTAINS,
 	gt: Operator.NAMED_GT,
 	lt: Operator.NAMED_LT,
 	gte: Operator.NAMED_GTE,
 	lte: Operator.NAMED_LTE,
 	between: Operator.NAMED_BETWEEN,
+	in: Operator.NAMED_IN,
+	not_in: Operator.NAMED_NOT_IN,
 };
 
 export interface IQueryParameters {
@@ -248,6 +253,28 @@ export class QueryParameters implements IQueryParameters {
 					);
 					break;
 
+				case Operator.NAMED_IN:
+				case Operator.IN:
+					filters.push(
+						new Filter(
+							new FilterField(key),
+							FilterOperator.fromValue('IN'),
+							new FilterValue(filterValue)
+						)
+					);
+					break;
+
+				case Operator.NAMED_NOT_IN:
+				case Operator.NOT_IN:
+					filters.push(
+						new Filter(
+							new FilterField(key),
+							FilterOperator.fromValue('NOT IN'),
+							new FilterValue(filterValue)
+						)
+					);
+					break;
+
 				case Operator.NAMED_NOT_EQ:
 				case Operator.NOT_EQUAL:
 					filters.push(
@@ -303,10 +330,19 @@ export class QueryParser {
 				}
 				const filterMap = query.get('filter') as FilterMap;
 
+				// An operator we do not know must be an error. Falling back to equality would silently
+				// turn `filter[x][not_contains]=a` into `x = a`, the opposite of what was asked.
 				const operator = operatorSegment
-					? (OPERATOR_MAP[operatorSegment.toLowerCase()] ??
-						Operator.EQUAL)
+					? OPERATOR_MAP[operatorSegment.toLowerCase()]
 					: Operator.EQUAL;
+				if (!operator) {
+					throw new QueryValidationException([
+						{
+							field: `filter[${field}]`,
+							message: `unknown operator "${operatorSegment}"`,
+						},
+					]);
+				}
 
 				filterMap.set(field, [operator, value]);
 				continue;

@@ -19,6 +19,28 @@ pnpm start:dev
 
 `pnpm test` and `pnpm typecheck` at the root run both projects. End-to-end tests (real Postgres, full HTTP stack) are separate: with the compose database up and migrated (`pnpm db:migrate`), run `pnpm --filter nestforge-starter test:e2e`. They truncate the `auths`/`profiles` tables, so don't point them at data you care about.
 
+## Using the package from another repo
+
+`packages/nestforge` has a `prepare` script, so it can be installed straight from git (pnpm builds `dist/` on install). pnpm 10+ also needs the build allowed in the consumer's `pnpm-workspace.yaml`:
+
+```sh
+pnpm add "nestforge@github:ruelblapid/nestforge#<commit>&path:/packages/nestforge"
+```
+
+```yaml
+allowBuilds:
+  nestforge: true
+```
+
+Pin a commit (or tag), not a branch, so installs are reproducible. Building on install adds roughly a minute to a cold install.
+
+What an app typically takes from it:
+
+- **Results:** services return `Either<DataError, T>`; `EitherInterceptor` unwraps it and turns a Left into an `ApiException`. `codedError('CLAIM_NOT_FOUND', 'Claim not found', 404, { claimId })` carries a stable string code and extra details through to the response.
+- **Wire format:** `ApiExceptionFilter` writes `{ success, statusCode, message, errorCode?, details?, errors? }`. An app that must keep its own format extends it and overrides `body(info)`. Unexpected errors are logged and answered with a generic 500.
+- **List queries:** `@QuerySchema` + `@Params()` parse and validate `filter[...]`, `sort` and `page[...]`; `buildPrismaQuery(parameters, fields, options)` turns them into `where` / `orderBy` / `skip` / `take` for Prisma (typed values, escaped `contains`, dotted relation paths, stable paging). It builds plain objects, so nestforge has no Prisma dependency.
+- Unknown filter operators (for example a typo) are rejected with a 400. They used to be treated as equality.
+
 ## Starter conventions
 
 - `domain/` – plain entities with factories returning `Either`, repository interfaces. No Nest/Prisma imports.

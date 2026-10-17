@@ -15,7 +15,10 @@ export class EitherInterceptor implements NestInterceptor {
 				if (!(value instanceof Either)) return value;
 				return value.fold(
 					(err: any) => {
-						throw new ApiException(err?.message ?? 'Request failed', err?.code ?? 400);
+						throw new ApiException(err?.message ?? 'Request failed', typeof err?.code === 'number' ? err.code : 400, {
+							errorCode: typeof err?.errorCode === 'string' ? err.errorCode : undefined,
+							details: err?.details,
+						});
 					},
 					(ok) => ok,
 				);

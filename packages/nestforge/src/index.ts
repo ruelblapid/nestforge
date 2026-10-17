@@ -19,9 +19,12 @@ export type { IDatabase, IDatabaseManager } from './Database';
 export { Either, UseCaseError } from './UseCase';
 export type { IUseCase, CommandResponse, QueryResponse, DataError } from './UseCase';
 export { EitherAsync } from './UseCase/EitherAsync';
+export { codedError } from './UseCase/codedError';
+export type { CodedError } from './UseCase/DataError';
 
 // Exceptions
 export { default as ApiException, HTTP_STATUS } from './Exceptions/ApiException';
+export type { ApiExceptionOptions } from './Exceptions/ApiException';
 export { default as BadRequestException } from './Exceptions/BadRequestException';
 export { default as SessionExpiredException } from './Exceptions/SessionExpiredException';
 export { default as TokenExpiredException } from './Exceptions/TokenExpiredException';
@@ -70,3 +73,7 @@ export * as Permissions from './Domains/Permissions';
 
 // NestJS integration
 export * from './Nest';
+
+// Prisma (ORM-agnostic: builds plain where/orderBy objects)
+export { buildPrismaQuery, escapeLike } from './Prisma/buildPrismaQuery';
+export type { PrismaFieldKind, PrismaFieldMap, PrismaQuery, PrismaQueryOptions } from './Prisma/buildPrismaQuery';
