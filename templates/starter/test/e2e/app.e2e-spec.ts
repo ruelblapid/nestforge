@@ -50,6 +50,7 @@ beforeAll(async () => {
 		.compile();
 	app = moduleRef.createNestApplication();
 	app.setGlobalPrefix('api', { exclude: [{ path: 'health', method: RequestMethod.GET }] });
+	app.useLogger(false);
 	await app.init();
 	db = app.get(DataSource);
 });
@@ -67,6 +68,19 @@ describe('health', () => {
 		const res = await http().get('/health');
 		expect(res.status).toBe(200);
 		expect(res.body.status).toBe('ok');
+	});
+});
+
+describe('request id', () => {
+	it('generates one and echoes a safe caller-supplied one', async () => {
+		const generated = await http().get('/api/profiles/me');
+		expect(generated.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+
+		const echoed = await http().get('/api/profiles/me').set('X-Request-Id', 'trace-123');
+		expect(echoed.headers['x-request-id']).toBe('trace-123');
+
+		const unsafe = await http().get('/api/profiles/me').set('X-Request-Id', 'bad id	with spaces');
+		expect(unsafe.headers['x-request-id']).not.toContain(' ');
 	});
 });
 

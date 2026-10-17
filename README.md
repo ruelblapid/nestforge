@@ -30,6 +30,10 @@ pnpm start:dev                         # applies pending migrations outside prod
 
 `POST /api/auth/google` and `POST /api/auth/apple` take `{ idToken, nonce? }` (Apple also `firstName?`, `lastName?`). Set `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` (comma-separated audiences); an empty value disables that provider. Tokens are verified against the provider's JWKS with `jose`. An existing account is linked by email only when the provider reports the email as verified.
 
+## Request id and logging
+
+Every request gets an `X-Request-Id` (a safe incoming value is kept, otherwise a UUID is generated) and one log line on completion: method, path (no query string), status, duration, id and user id. `/health` is not logged.
+
 ## Migrations
 
 Schema changes go through TypeORM migrations in `src/infrastructure/migrations` (`synchronize` is off). Outside production they run on app start; in production run them explicitly.
@@ -46,4 +50,4 @@ pnpm migration:revert
 
 ## Not done yet
 
-Google/Apple authorization-code (PKCE) and web redirect flows, Prometheus metrics, request logging/request-id, Swagger, app Dockerfile.
+Google/Apple authorization-code (PKCE) and web redirect flows, Prometheus metrics, Swagger, app Dockerfile.

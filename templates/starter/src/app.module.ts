@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -8,6 +8,7 @@ import { ApiExceptionFilter, EitherInterceptor } from 'nestforge';
 import { AuthController } from './api/controllers/auth.controller';
 import { HealthController } from './api/controllers/health.controller';
 import { ProfileController } from './api/controllers/profile.controller';
+import { RequestContextMiddleware } from './api/middleware/request-context.middleware';
 import { JwtAuthGuard, JwtStrategy, RolesGuard } from './api/security/security';
 import { AuthService } from './application/auth.service';
 import { IDENTITY_VERIFIER } from './application/identity-verifier';
@@ -45,4 +46,9 @@ import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-iden
 		{ provide: APP_GUARD, useClass: RolesGuard },
 	],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+	configure(consumer: MiddlewareConsumer) {
+		// Health probes are frequent and uninteresting; keep them out of the request log.
+		consumer.apply(RequestContextMiddleware).exclude({ path: 'health', method: RequestMethod.GET }).forRoutes('*');
+	}
+}
