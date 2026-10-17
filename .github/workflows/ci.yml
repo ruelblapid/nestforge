@@ -24,7 +24,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
-  migrations:
+  migrations-e2e:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -57,3 +57,4 @@ jobs:
       - run: pnpm --filter nestforge-starter migration:run
       # Fails if entities drifted from the committed migrations.
       - run: pnpm --filter nestforge-starter exec typeorm migration:generate -d dist/infrastructure/data-source.js --check src/infrastructure/migrations/Check
+      - run: pnpm --filter nestforge-starter test:e2e

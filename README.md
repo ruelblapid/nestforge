@@ -16,7 +16,7 @@ docker compose up -d --wait            # local Postgres matching .env.example
 pnpm start:dev                         # applies pending migrations outside production
 ```
 
-`pnpm test` and `pnpm typecheck` at the root run both projects.
+`pnpm test` and `pnpm typecheck` at the root run both projects. End-to-end tests (real Postgres, full HTTP stack) are separate: with the compose database up and migrated (`pnpm migration:run`), run `pnpm --filter nestforge-starter test:e2e`. They truncate the `auths`/`profiles` tables, so don't point them at data you care about.
 
 ## Starter conventions
 

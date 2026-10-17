@@ -11,6 +11,7 @@ import { ProfileRepository } from './repositories/profile.repository';
 import { TypeOrmUnitOfWork } from './unit-of-work';
 
 const isProd = env.NODE_ENV === 'production';
+const isTest = env.NODE_ENV === 'test';
 
 @Module({
 	imports: [
@@ -18,7 +19,9 @@ const isProd = env.NODE_ENV === 'production';
 			...dataSource.options,
 			// Schema changes go through migrations; auto-apply only outside production.
 			synchronize: false,
-			migrationsRun: !isProd,
+			// Tests run against a database migrated beforehand (`pnpm migration:run`); vitest can't load the .ts migrations.
+			migrations: isTest ? [] : dataSource.options.migrations,
+			migrationsRun: !isProd && !isTest,
 		}),
 		TypeOrmModule.forFeature([AuthEntity, ProfileEntity]),
 	],
