@@ -54,9 +54,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter nestforge build
-      - run: pnpm --filter nestforge-starter migration:run
-      # Fails if entities drifted from the committed migrations.
-      - run: pnpm --filter nestforge-starter exec typeorm migration:generate -d dist/infrastructure/data-source.js --check src/infrastructure/migrations/Check
+      - run: pnpm --filter nestforge-starter db:migrate
+      # Fails if prisma/schema.prisma and the committed migrations disagree (diffing migrations needs a shadow database).
+      - name: Migrations match the schema
+        env:
+          SHADOW_DATABASE_URL: postgresql://nestjs_user:nestjs_password@localhost:5432/shadow
+        run: |
+          PGPASSWORD=nestjs_password psql -h localhost -U nestjs_user -d nestjs_postgres -c 'CREATE DATABASE shadow'
+          pnpm --filter nestforge-starter exec prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
       - run: pnpm --filter nestforge-starter test:e2e
 
   docker:

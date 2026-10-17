@@ -3,7 +3,6 @@ import { INestApplication, RequestMethod } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -15,13 +14,16 @@ vi.hoisted(() => {
 });
 
 import { AppModule } from '../../src/app.module';
+import { AuthUser } from '../../src/domain/auth-user';
+import { AUTH_REPOSITORY, IAuthRepository, IUnitOfWork, UNIT_OF_WORK } from '../../src/domain/repositories';
+import { PrismaService } from '../../src/infrastructure/prisma/prisma.service';
 
 const PASSWORD = 'Sup3r-Secret!pw';
 const NEW_PASSWORD = 'An0ther-Secret!pw';
 const WRONG_PASSWORD = 'Wrong-Passw0rd!';
 
 let app: INestApplication;
-let db: DataSource;
+let db: PrismaService;
 let seq = 0;
 
 const http = () => request(app.getHttpServer());
@@ -34,7 +36,7 @@ async function register(overrides: Record<string, unknown> = {}) {
 }
 
 async function makeAdmin(email: string) {
-	await db.query('UPDATE auths SET roles = $1 WHERE email = $2', [['admin'], email]);
+	await db.$executeRawUnsafe("UPDATE auths SET roles = ARRAY['admin'] WHERE email = $1", email);
 }
 
 async function login(email: string, password = PASSWORD) {
@@ -58,11 +60,11 @@ beforeAll(async () => {
 	});
 	app.useLogger(false);
 	await app.init();
-	db = app.get(DataSource);
+	db = app.get(PrismaService);
 });
 
 beforeEach(async () => {
-	await db.query('TRUNCATE TABLE login_codes, profiles, auths CASCADE');
+	await db.$executeRawUnsafe('TRUNCATE TABLE login_codes, profiles, auths CASCADE');
 });
 
 afterAll(async () => {
@@ -237,5 +239,105 @@ describe('profiles', () => {
 				.set(bearer(adminToken));
 			expect(res.status).toBe(400);
 		});
+	});
+});
+
+describe('database behaviour', () => {
+	it('a soft-deleted user is invisible and their email can be registered again', async () => {
+		const { body, tokens } = await register();
+		const auth = app.get<IAuthRepository>(AUTH_REPOSITORY);
+		const user = await auth.findByEmail(body.email as string);
+		expect(user).not.toBeNull();
+
+		await auth.softDelete(user!.id);
+		expect(await auth.findByEmail(body.email as string)).toBeNull();
+		expect(await auth.findById(user!.id)).toBeNull();
+		expect((await login(body.email as string)).status).toBe(401);
+		// The row is kept, only marked.
+		expect(await db.$queryRawUnsafe('SELECT 1 FROM auths WHERE deleted_at IS NOT NULL')).toHaveLength(1);
+		expect(tokens.accessToken).toBeTruthy();
+
+		// Partial unique index: the deleted row no longer blocks the email.
+		const again = await http().post('/api/auth/register').send(body);
+		expect(again.status).toBe(201);
+		expect(await db.$queryRawUnsafe('SELECT 1 FROM auths')).toHaveLength(2);
+	});
+
+	it('two simultaneous sign-ups with one email produce exactly one account and one 409', async () => {
+		const body = { email: 'race@example.com', password: PASSWORD, name: 'Racer' };
+		const results = await Promise.all(Array.from({ length: 6 }, () => http().post('/api/auth/register').send(body)));
+
+		expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+		expect(results.filter((r) => r.status === 409)).toHaveLength(5);
+		expect(await db.$queryRawUnsafe('SELECT 1 FROM auths')).toHaveLength(1);
+		expect(await db.$queryRawUnsafe('SELECT 1 FROM profiles')).toHaveLength(1);
+	});
+
+	it('rolls back the auth row when the profile insert fails inside the transaction', async () => {
+		const uow = app.get<IUnitOfWork>(UNIT_OF_WORK);
+		const auth = app.get<IAuthRepository>(AUTH_REPOSITORY);
+		const created = AuthUser.create({ email: 'rollback@example.com', passwordHash: 'x' }).getRight();
+
+		await expect(
+			uow.run(async ({ auth: a }) => {
+				await a.save(created);
+				throw new Error('boom');
+			}),
+		).rejects.toThrow('boom');
+		expect(await auth.findByEmail('rollback@example.com')).toBeNull();
+	});
+});
+
+describe('profile list filters', () => {
+	let adminToken: string;
+
+	beforeEach(async () => {
+		await register({ name: 'Alice', lastname: 'Smith', age: 20 });
+		await register({ name: '100%', age: 30 });
+		await register({ name: 'Bob_by', age: 40 });
+		const admin = await register({ name: 'Admin', age: 50 });
+		await makeAdmin(admin.body.email as string);
+		adminToken = (await login(admin.body.email as string)).body.accessToken;
+	});
+
+	const list = (query: Record<string, string | number>) => http().get('/api/profiles').query(query).set(bearer(adminToken));
+	const names = (res: request.Response) => res.body.items.map((p: { name: string }) => p.name).sort();
+
+	it('treats % and _ in a contains filter literally', async () => {
+		expect(names(await list({ 'filter[name][contains]': '%' }))).toEqual(['100%']);
+		expect(names(await list({ 'filter[name][contains]': '_' }))).toEqual(['Bob_by']);
+	});
+
+	it('matches case-insensitively', async () => {
+		expect(names(await list({ 'filter[name][contains]': 'ALICE' }))).toEqual(['Alice']);
+	});
+
+	it('filters by creation date and ignores an unparseable date instead of failing', async () => {
+		const future = await list({ 'filter[createdAt][gte]': '2999-01-01' });
+		expect(future.status).toBe(200);
+		expect(future.body.items).toHaveLength(0);
+
+		const past = await list({ 'filter[createdAt][gte]': '2000-01-01' });
+		expect(past.body.items).toHaveLength(4);
+	});
+
+	it('reports the total across pages and pages through sorted results', async () => {
+		const first = await list({ 'filter[age][gte]': 30, sort: 'age', 'page[number]': 1, 'page[size]': 2 });
+		expect(first.body.total).toBe(3);
+		expect(first.body.items.map((p: { age: number }) => p.age)).toEqual([30, 40]);
+		const second = await list({ 'filter[age][gte]': 30, sort: 'age', 'page[number]': 2, 'page[size]': 2 });
+		expect(second.body.items.map((p: { age: number }) => p.age)).toEqual([50]);
+	});
+
+	it('combines filters on different fields', async () => {
+		const res = await list({ 'filter[age][gte]': 30, 'filter[name][contains]': 'b' });
+		expect(names(res)).toEqual(['Bob_by']);
+	});
+
+	it('does not list soft-deleted profiles', async () => {
+		await db.$executeRawUnsafe("UPDATE profiles SET deleted_at = now() WHERE name = 'Alice'");
+		const res = await list({});
+		expect(names(res)).not.toContain('Alice');
+		expect(res.body.total).toBe(3);
 	});
 });

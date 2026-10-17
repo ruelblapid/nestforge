@@ -12,7 +12,7 @@ import {
 	IIdentityVerifier,
 	VerifiedIdentity,
 } from './identity-verifier';
-import { AUTH_REPOSITORY, IAuthRepository, IUnitOfWork, UNIT_OF_WORK } from '../domain/repositories';
+import { AUTH_REPOSITORY, IAuthRepository, IUnitOfWork, UNIT_OF_WORK, UniqueViolationError } from '../domain/repositories';
 
 export interface RegisterInput {
 	email: string;
@@ -37,7 +37,6 @@ export interface AccessTokenPayload {
 const BCRYPT_ROUNDS = 10;
 /** Compared against when the email is unknown, so login time doesn't reveal which emails exist. */
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS);
-const PG_UNIQUE_VIOLATION = '23505';
 
 @Injectable()
 export class AuthService {
@@ -201,7 +200,7 @@ export class AuthService {
 			return conflict ? fail(conflict) : ok(null);
 		} catch (e) {
 			// Two concurrent sign-ups can both pass the check above; the unique index decides.
-			if ((e as { code?: string })?.code === PG_UNIQUE_VIOLATION) {
+			if (e instanceof UniqueViolationError) {
 				return fail(conflictError('An account with this email already exists.'));
 			}
 			throw e;

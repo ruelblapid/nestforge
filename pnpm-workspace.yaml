@@ -6,3 +6,6 @@ allowBuilds:
   bcrypt: true
   "@swc/core": true
   "@scarf/scarf": false
+  "@prisma/client": false
+  "@prisma/engines": true
+  prisma: true

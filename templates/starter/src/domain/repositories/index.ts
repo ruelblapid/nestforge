@@ -45,7 +45,15 @@ export interface TransactionalRepositories {
 	profile: IProfileRepository;
 }
 
-/** Runs `work` in one DB transaction; rolls back if it throws. */
+/** A write lost a race against a unique constraint (e.g. two sign-ups with the same email at once). */
+export class UniqueViolationError extends Error {
+	constructor() {
+		super('Unique constraint violated');
+	}
+}
+
+/** Runs `work` in one DB transaction; rolls back if it throws.
+ * Throws `UniqueViolationError` when a unique constraint rejects a write. */
 export interface IUnitOfWork {
 	run<T>(work: (repos: TransactionalRepositories) => Promise<T>): Promise<T>;
 }

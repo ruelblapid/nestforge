@@ -18,22 +18,25 @@ services:
   # Optional: run the built image against this database (docker compose --profile app up --build).
   migrate:
     profiles: [app]
-    build: &app-build
+    build:
       context: ../..
       dockerfile: templates/starter/Dockerfile
+      target: migrate
     environment: &app-env
       DATABASE_URL: postgresql://nestjs_user:nestjs_password@postgres:5432/nestjs_postgres
       DATABASE_SSL: 'false'
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ chars)}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET (32+ chars)}
-    command: ['node', 'node_modules/typeorm/cli.js', 'migration:run', '-d', 'dist/infrastructure/data-source.js']
     depends_on:
       postgres:
         condition: service_healthy
 
   api:
     profiles: [app]
-    build: *app-build
+    build:
+      context: ../..
+      dockerfile: templates/starter/Dockerfile
+      target: runtime
     environment: *app-env
     ports:
       - '4000:4000'

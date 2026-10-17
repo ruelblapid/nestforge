@@ -19,6 +19,7 @@ import { OAUTH_CLIENTS } from './application/oauth-client';
 import { OAuthService } from './application/oauth.service';
 import { ProfileService } from './application/profile.service';
 import { DatabaseModule } from './infrastructure/database.module';
+import { PrismaHealthIndicator } from './infrastructure/prisma/prisma-health.indicator';
 import { MetricsService } from './infrastructure/metrics/metrics.service';
 import { AppleOAuthClient } from './infrastructure/oauth/apple-oauth-client';
 import { GoogleOAuthClient } from './infrastructure/oauth/google-oauth-client';
@@ -38,6 +39,7 @@ import { JoseIdentityVerifier, parseClientIds } from './infrastructure/jose-iden
 		OAuthService,
 		ProfileService,
 		MetricsService,
+		PrismaHealthIndicator,
 		JwtStrategy,
 		{
 			provide: IDENTITY_VERIFIER,

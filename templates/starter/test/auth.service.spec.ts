@@ -12,7 +12,7 @@ import { AuthService } from '../src/application/auth.service';
 import { AuthUser } from '../src/domain/auth-user';
 import { Profile } from '../src/domain/profile';
 import { IIdentityVerifier, InvalidIdentityTokenError, VerifiedIdentity } from '../src/application/identity-verifier';
-import { IAuthRepository, IProfileRepository, IUnitOfWork } from '../src/domain/repositories';
+import { IAuthRepository, IProfileRepository, IUnitOfWork, UniqueViolationError } from '../src/domain/repositories';
 import { OAuthProvider } from '../src/domain/auth-user';
 
 class FakeAuthRepo implements IAuthRepository {
@@ -162,5 +162,30 @@ describe('AuthService.signInWithProvider', () => {
 		await ctx.service.signInWithProvider('apple', 't');
 		ctx.verifier.next = { provider: 'apple', subject: 'a-1', emailVerified: false };
 		expect((await ctx.service.signInWithProvider('apple', 't')).isRight()).toBe(true);
+	});
+});
+
+describe('AuthService when a sign-up loses a race on the unique index', () => {
+	it('answers 409 instead of failing, for both password and provider sign-up', async () => {
+		const lostRace: IUnitOfWork = {
+			async run() {
+				throw new UniqueViolationError();
+			},
+		};
+		const verifier = new FakeVerifier();
+		const service = new AuthService(new FakeAuthRepo(), lostRace, new JwtService(), verifier);
+
+		expect((await service.register(input)).getLeft()).toMatchObject({ code: 409 });
+		expect((await service.signInWithProvider('google', 'token')).getLeft()).toMatchObject({ code: 409 });
+	});
+
+	it('does not swallow other database failures', async () => {
+		const broken: IUnitOfWork = {
+			async run() {
+				throw new Error('connection reset');
+			},
+		};
+		const service = new AuthService(new FakeAuthRepo(), broken, new JwtService(), new FakeVerifier());
+		await expect(service.register(input)).rejects.toThrow('connection reset');
 	});
 });

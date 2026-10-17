@@ -1,0 +1,65 @@
+// The client is generated into ./generated (not node_modules) so the compiled app finds it next to dist/.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Persistence model; the domain `AuthUser` is mapped to/from this in the repository.
+/// Rows are soft-deleted (`deleted_at`); every repository read filters on `deleted_at IS NULL`.
+///
+/// The three unique constraints below are PARTIAL indexes in the database: unique only among live rows, so a
+/// soft-deleted user's email can be registered again. Prisma cannot express the WHERE clause, so the init
+/// migration creates them by hand under the same names. Do not look users up with `findUnique({ where: { email } })`;
+/// the repositories use `findFirst` with `deletedAt: null`.
+model Auth {
+  id               String    @id
+  email            String
+  passwordHash     String?   @map("password_hash")
+  roles            String[]  @default(["user"])
+  refreshTokenHash String?   @map("refresh_token_hash")
+  googleId         String?   @map("google_id")
+  appleId          String?   @map("apple_id")
+  lastLoginAt      DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz
+
+  profile Profile?
+
+  @@unique([email], map: "uq_auths_email_live")
+  @@unique([googleId], map: "uq_auths_google_live")
+  @@unique([appleId], map: "uq_auths_apple_live")
+  @@map("auths")
+}
+
+model Profile {
+  id        String    @id
+  authId    String    @map("auth_id")
+  name      String
+  lastname  String?
+  age       Int?
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  auth Auth @relation(fields: [authId], references: [id])
+
+  /// Partial in the database (live rows only), like the Auth ones.
+  @@unique([authId], map: "uq_profiles_auth_live")
+  @@map("profiles")
+}
+
+/// One-time code handed to the browser after a redirect sign-in. Only the SHA-256 of the code is stored.
+model LoginCode {
+  codeHash  String   @id @map("code_hash")
+  authId    String   @map("auth_id")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+
+  @@index([expiresAt], map: "idx_login_codes_expires_at")
+  @@map("login_codes")
+}

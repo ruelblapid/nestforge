@@ -3,7 +3,6 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import request from 'supertest';
-import { DataSource } from 'typeorm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.hoisted(() => {
@@ -16,6 +15,7 @@ vi.hoisted(() => {
 });
 
 import { AppModule } from '../../src/app.module';
+import { PrismaService } from '../../src/infrastructure/prisma/prisma.service';
 import { IDENTITY_VERIFIER, InvalidIdentityTokenError } from '../../src/application/identity-verifier';
 import {
 	AuthorizeParams,
@@ -63,7 +63,7 @@ const google = new FakeProvider('google', true);
 const apple = new FakeProvider('apple', false);
 
 let app: INestApplication;
-let db: DataSource;
+let db: PrismaService;
 const http = () => request(app.getHttpServer());
 
 beforeAll(async () => {
@@ -87,11 +87,11 @@ beforeAll(async () => {
 	app.setGlobalPrefix('api');
 	app.useLogger(false);
 	await app.init();
-	db = app.get(DataSource);
+	db = app.get(PrismaService);
 });
 
 beforeEach(async () => {
-	await db.query('TRUNCATE TABLE login_codes, profiles, auths CASCADE');
+	await db.$executeRawUnsafe('TRUNCATE TABLE login_codes, profiles, auths CASCADE');
 	google.exchanges = [];
 	apple.exchanges = [];
 });
@@ -188,7 +188,7 @@ describe('redirect flow: callback and exchange', () => {
 		expect(errorOf(crossProvider)).toBe('invalid_state');
 
 		expect(google.exchanges).toHaveLength(0);
-		expect(await db.query('SELECT 1 FROM auths')).toHaveLength(0);
+		expect(await db.$queryRawUnsafe<{ code_hash: string }[]>('SELECT 1 FROM auths')).toHaveLength(0);
 	});
 
 	it('sends the browser back with an error when the user denies consent or the provider rejects the code', async () => {
@@ -212,7 +212,7 @@ describe('redirect flow: callback and exchange', () => {
 		} finally {
 			google.exchangeCode = original;
 		}
-		expect(await db.query('SELECT 1 FROM auths')).toHaveLength(0);
+		expect(await db.$queryRawUnsafe<{ code_hash: string }[]>('SELECT 1 FROM auths')).toHaveLength(0);
 	});
 
 	it('handles Apple form_post and takes the name from the first-time `user` field', async () => {
@@ -238,14 +238,14 @@ describe('redirect flow: callback and exchange', () => {
 			const code = webRedirect(cb.headers.location).searchParams.get('code')!;
 			expect((await http().post('/api/auth/exchange').send({ code })).status).toBe(200);
 		}
-		expect(await db.query('SELECT 1 FROM auths')).toHaveLength(1);
+		expect(await db.$queryRawUnsafe<{ code_hash: string }[]>('SELECT 1 FROM auths')).toHaveLength(1);
 	});
 
 	it('rejects an expired login code and unknown codes', async () => {
 		const { cookie, state } = await startFlow('google');
 		const cb = await http().get('/api/auth/google/callback').query({ code: 'good-6', state }).set('Cookie', cookie);
 		const code = webRedirect(cb.headers.location).searchParams.get('code')!;
-		await db.query(`UPDATE login_codes SET expires_at = now() - interval '1 second'`);
+		await db.$executeRawUnsafe(`UPDATE login_codes SET expires_at = now() - interval '1 second'`);
 
 		expect((await http().post('/api/auth/exchange').send({ code })).status).toBe(401);
 		expect((await http().post('/api/auth/exchange').send({ code: 'made-up' })).status).toBe(401);
@@ -256,7 +256,7 @@ describe('redirect flow: callback and exchange', () => {
 		const { cookie, state } = await startFlow('google');
 		const cb = await http().get('/api/auth/google/callback').query({ code: 'good-7', state }).set('Cookie', cookie);
 		const code = webRedirect(cb.headers.location).searchParams.get('code')!;
-		const rows = await db.query('SELECT code_hash FROM login_codes');
+		const rows = await db.$queryRawUnsafe<{ code_hash: string }[]>('SELECT code_hash FROM login_codes');
 		expect(rows).toHaveLength(1);
 		expect(rows[0].code_hash).not.toBe(code);
 	});

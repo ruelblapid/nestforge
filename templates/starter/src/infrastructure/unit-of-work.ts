@@ -1,19 +1,20 @@
-import { DataSource } from 'typeorm';
-import { IUnitOfWork, TransactionalRepositories } from '../domain/repositories';
-import { AuthEntity } from './entities/auth.entity';
-import { ProfileEntity } from './entities/profile.entity';
+import { IUnitOfWork, TransactionalRepositories, UniqueViolationError } from '../domain/repositories';
+import { isUniqueViolation, PrismaService } from './prisma/prisma.service';
 import { AuthRepository } from './repositories/auth.repository';
 import { ProfileRepository } from './repositories/profile.repository';
 
-export class TypeOrmUnitOfWork implements IUnitOfWork {
-	constructor(private readonly dataSource: DataSource) {}
+export class PrismaUnitOfWork implements IUnitOfWork {
+	constructor(private readonly prisma: PrismaService) {}
 
-	run<T>(work: (repos: TransactionalRepositories) => Promise<T>): Promise<T> {
-		return this.dataSource.transaction((manager) =>
-			work({
-				auth: new AuthRepository(manager.getRepository(AuthEntity)),
-				profile: new ProfileRepository(manager.getRepository(ProfileEntity)),
-			}),
-		);
+	async run<T>(work: (repos: TransactionalRepositories) => Promise<T>): Promise<T> {
+		try {
+			return await this.prisma.$transaction((tx) =>
+				work({ auth: new AuthRepository(tx), profile: new ProfileRepository(tx) }),
+			);
+		} catch (e) {
+			// Callers decide what a lost race means; they should not have to know the driver's error codes.
+			if (isUniqueViolation(e)) throw new UniqueViolationError();
+			throw e;
+		}
 	}
 }
