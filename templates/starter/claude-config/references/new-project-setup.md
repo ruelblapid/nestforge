@@ -8,8 +8,8 @@ The library lives at https://github.com/ruelblapid/nestforge (package in `packag
 
 ## 0. Make sure the standards came along
 
-The new project must contain `CLAUDE.md` and the whole `.claude/` folder (`SKILL.md`,
-`references/`, `scripts/`). Dot-folders are easy to drop when copying or scaffolding. Update
+The new project must contain `CLAUDE.md` and the whole `.claude/` folder (`settings.json`,
+`skills/`, `references/`, `scripts/`). Dot-folders are easy to drop when copying or scaffolding. Update
 the first paragraph of `CLAUDE.md` with what the project actually is, and keep the rest.
 
 ## 1. package.json

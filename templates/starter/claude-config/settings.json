@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test)",
+      "Bash(pnpm build)",
+      "Bash(pnpm db:generate)",
+      "Bash(pnpm audit --prod)",
+      "Bash(bash .claude/scripts/check_architecture.sh)",
+      "Bash(bash .claude/scripts/run_tests.sh)",
+      "Bash(bash .claude/scripts/security_scan.sh)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ],
+    "deny": [
+      "Bash(pnpm exec prisma migrate reset*)",
+      "Bash(pnpm exec prisma db push*)",
+      "Bash(npx prisma migrate reset*)",
+      "Bash(npx prisma db push*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Read(./.env)"
+    ]
+  }
+}

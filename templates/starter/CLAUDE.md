@@ -2,7 +2,7 @@
 
 This project is a NestJS API built on the `nestforge` package. It uses a layered, DDD-lite architecture (domain, application, api, infrastructure) with Prisma + Postgres, Zod validation and `Either` results. Every convention is documented in full under `.claude/`.
 
-**Before writing any code, read `.claude/SKILL.md` (the workflow) and `.claude/references/architecture.md` (the index into everything else).** Then follow whichever doc matches what you are building:
+**Before writing any code, read `.claude/skills/nest-api-dev/SKILL.md` (the workflow) and `.claude/references/architecture.md` (the index into everything else).** Then follow whichever doc matches what you are building:
 
 - Starting a brand new project from this template (rename, `nestforge` git dependency, Docker, secrets): `new-project-setup.md`
 - Layers, dependency rule, request flow, the per-domain recipe: `architecture.md`
@@ -22,6 +22,14 @@ This project is a NestJS API built on the `nestforge` package. It uses a layered
 
 All paths above are relative to `.claude/references/`.
 
+## Skills (`.claude/skills/`)
+
+- `nest-api-dev`: the build/modify/document workflow for any code change.
+- `review-features`: review a feature, diff or branch against these standards ("review my changes").
+- `security-check`: security review of the API surface or a change ("security check").
+
+Run `review-features` on your own diff before calling a feature done, and `security-check` when a change touches auth, roles, public routes, raw SQL, env vars or user input.
+
 ## Commands
 
 ```sh
@@ -35,6 +43,7 @@ pnpm test                         # unit tests (no database needed)
 pnpm test:e2e                     # full HTTP stack, needs the compose database, TRUNCATEs tables
 
 .claude/scripts/run_tests.sh      # architecture check + typecheck + unit tests (RUN_E2E=1 adds e2e)
+.claude/scripts/security_scan.sh  # route protection inventory, raw SQL, secrets, hardening, pnpm audit
 ```
 
 ## Rules

@@ -8,36 +8,38 @@ description: Use this skill when working on this NestJS project's codebase, whet
 Keeps every code change in this repo consistent with the architecture, style, testing
 standards and commit conventions, and keeps the feature docs truthful.
 
+All paths below are from the project root.
+
 ## Before making any change
 
 Load what is relevant to the task:
 
-- `references/architecture.md`: always, for any code change (layers, dependency rule,
+- `.claude/references/architecture.md`: always, for any code change (layers, dependency rule,
   per-domain recipe)
-- `references/stack.md` and `references/code-style.md`: always, for any code change
-- `references/domain-pattern.md`: new or changed entity, error, or repository interface
-- `references/repositories-pattern.md`: anything under `src/infrastructure/repositories`
-- `references/services-pattern.md`: anything under `src/application`
-- `references/controllers-and-schemas-pattern.md`: anything under `src/api`
-- `references/auth-pattern.md`: login, tokens, roles, guards, social sign-in
-- `references/database-and-migrations.md`: any edit to `prisma/schema.prisma`
-- `references/config-and-env.md`: any new or changed environment variable
-- `references/observability-and-ops.md`: health, metrics, logging, Swagger, Docker
-- `references/testing-conventions.md`: before writing tests
-- `references/commit-convention.md`: before committing anything
-- `references/new-project-setup.md`: when this template was just copied into a new project
-- `references/features/<feature-name>.md`: when the task touches a documented feature
+- `.claude/references/stack.md` and `.claude/references/code-style.md`: always, for any code change
+- `.claude/references/domain-pattern.md`: new or changed entity, error, or repository interface
+- `.claude/references/repositories-pattern.md`: anything under `src/infrastructure/repositories`
+- `.claude/references/services-pattern.md`: anything under `src/application`
+- `.claude/references/controllers-and-schemas-pattern.md`: anything under `src/api`
+- `.claude/references/auth-pattern.md`: login, tokens, roles, guards, social sign-in
+- `.claude/references/database-and-migrations.md`: any edit to `prisma/schema.prisma`
+- `.claude/references/config-and-env.md`: any new or changed environment variable
+- `.claude/references/observability-and-ops.md`: health, metrics, logging, Swagger, Docker
+- `.claude/references/testing-conventions.md`: before writing tests
+- `.claude/references/commit-convention.md`: before committing anything
+- `.claude/references/new-project-setup.md`: when this template was just copied into a new project
+- `.claude/references/features/<feature-name>.md`: when the task touches a documented feature
 
-If the task touches a feature that is not yet documented in `references/features/`, that is
-fine. Implement it, then create the doc afterward (see "Documenting a new feature").
+If the task touches a feature that is not yet documented in `.claude/references/features/`, that
+is fine. Implement it, then create the doc afterward (see "Documenting a new feature").
 
 ## Direction (the process)
 
 ### 1. Understand what is being asked
 
 New feature, or a change to an existing one? They are handled differently (below). Check
-`references/features/` for a matching file first, and check the actual code, since code is the
-source of truth over docs if the two disagree.
+`.claude/references/features/` for a matching file first, and check the actual code, since code is
+the source of truth over docs if the two disagree.
 
 ### 2. Building a new feature or domain
 
@@ -48,17 +50,19 @@ source of truth over docs if the two disagree.
 3. Follow the per-domain recipe in `architecture.md`, layer by layer, domain first and api last.
 4. Write tests per `testing-conventions.md` (unit test with fakes for the service; e2e for the
    HTTP behavior and anything database-specific).
-5. Run `scripts/run_tests.sh`. For repository, schema, auth or controller changes also run
-   `RUN_E2E=1 scripts/run_tests.sh` with the compose database up and migrated.
-6. Create `references/features/<feature-name>.md` (template below).
-7. Commit following `commit-convention.md`.
+5. Run `.claude/scripts/run_tests.sh`. For repository, schema, auth or controller changes also run
+   `RUN_E2E=1 .claude/scripts/run_tests.sh` with the compose database up and migrated.
+6. Run the `review-features` skill on your own diff, and the `security-check` skill if the change
+   touches auth, roles, new public routes, raw SQL, env vars or anything that handles user input.
+7. Create `.claude/references/features/<feature-name>.md` (template below).
+8. Commit following `commit-convention.md`.
 
 ### 3. Modifying an existing feature
 
 1. Read the current code first. It is the source of truth; the doc may be stale.
-2. Read the matching `references/features/<feature-name>.md`.
+2. Read the matching `.claude/references/features/<feature-name>.md`.
 3. Apply only the requested change. Do not refactor unrelated code in the same pass unless asked.
-4. Update the tests affected by the change and run `scripts/run_tests.sh`.
+4. Update the tests affected by the change and run `.claude/scripts/run_tests.sh`.
 5. Update the feature doc: edit only the sections that changed and append a line to its Changelog.
 6. Commit following `commit-convention.md`.
 
@@ -71,7 +75,7 @@ source of truth over docs if the two disagree.
 
 ### 5. Documenting a new feature
 
-Use this shape for any new `references/features/<name>.md`:
+Use this shape for any new `.claude/references/features/<name>.md`:
 
 ```markdown
 # Feature: <name>
@@ -95,6 +99,6 @@ Use this shape for any new `references/features/<name>.md`:
 
 ## Done looks like
 
-Code that matches `code-style.md` and the layer rules, `scripts/run_tests.sh` passing, a commit
-message following `commit-convention.md`, and a feature doc that reflects current behavior, not
-what it used to do.
+Code that matches `code-style.md` and the layer rules, `.claude/scripts/run_tests.sh` passing, a
+commit message following `commit-convention.md`, and a feature doc that reflects current
+behavior, not what it used to do.
